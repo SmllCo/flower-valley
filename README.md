@@ -120,3 +120,11 @@ All JavaScript files pass the syntax check and nine existing Node tests pass (ca
 - Lake: irregular terrain and water edge, clustered reeds (720 tufts), 180 shore stones, shallow edge tint, subdued ripples, approximate reflected ridgelines, and a low mist bank. Reflections remain analytic, not a second scene render.
 - Vercel configuration and .gitignore retained. No dependencies or build output included.
 - Verification: run `npm test`, `npm run build`, then test on Intel, Xiaomi and iPhone Safari. Browser visual rendering, audio autoplay and frame rate have not been verified in this environment. Audio source unchanged from V13.
+
+
+## V15 — Living Lake
+- Builds on V14's mobile framing and performance gains. The goal is not a bigger lake, but a fuller finale.
+- Lake polish: analytic water shading now has subtler wave layering, darker edge depth, a gentler moon path and more variation across the surface.
+- Added a thin drifting surface mist sheet, floating motes/firefly-like glints above the water, and small lily pads clustered near the edges to stop the lake feeling empty.
+- Shoreline life increased: denser reeds and more shore stones, still leaving the central arrival open. Performance target is to stay close to V14 rather than adding expensive real reflections.
+- Verification still depends on the target devices. Run `npm test`, then compare V14 and V15 at the same station and flower count.

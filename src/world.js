@@ -115,17 +115,17 @@ export function buildWorld(scene){
  }
  grass.instanceMatrix.needsUpdate=true;grass.instanceColor.needsUpdate=true;scene.add(grass);
  // Small clumps of reeds and shore stones frame the lake, leaving a clear view at arrival.
- const shoreRandom=rng(1841), reeds=new T.InstancedMesh(gg,windy(new T.MeshBasicMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide})),720);
- const shoreStones=new T.InstancedMesh(new T.IcosahedronGeometry(1,1),new T.MeshLambertMaterial({color:0xffffff}),180);
- for(let i=0;i<720;i++){
-  const clump=i%36, a=clump/36*Math.PI*2+(shoreRandom()-.5)*.11;
-  const [x,z]=shorePoint(a,1.025+shoreRandom()*.11);
-  const gap=Math.abs(x)<3.6&&z>LAKE.z;
-  const r=(.55+shoreRandom()*.85)*(gap?.38:1);
-  dummy.position.set(x,height(x,z)-.025,z);dummy.rotation.set(0,shoreRandom()*6.28,0);dummy.scale.set(r,.9+r*2.0,r);dummy.updateMatrix();reeds.setMatrixAt(i,dummy.matrix);reeds.setColorAt(i,c.copy(greens[i%greens.length]).multiplyScalar(.78+shoreRandom()*.35));
+ const shoreRandom=rng(1841), reeds=new T.InstancedMesh(gg,windy(new T.MeshBasicMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide})),1080);
+ const shoreStones=new T.InstancedMesh(new T.IcosahedronGeometry(1,1),new T.MeshLambertMaterial({color:0xffffff}),260);
+ for(let i=0;i<1080;i++){
+  const ring=i<720?1.01:1.09, clump=i%54, a=clump/54*Math.PI*2+(shoreRandom()-.5)*.13;
+  const [x,z]=shorePoint(a,ring+shoreRandom()*.10);
+  const gap=Math.abs(x)<4.1&&z>LAKE.z;
+  const r=(.52+shoreRandom()*.92)*(gap?.34:1);
+  dummy.position.set(x,height(x,z)-.025,z);dummy.rotation.set(0,shoreRandom()*6.28,0);dummy.scale.set(r,.86+r*(i<720?2.1:1.6),r);dummy.updateMatrix();reeds.setMatrixAt(i,dummy.matrix);reeds.setColorAt(i,c.copy(greens[i%greens.length]).multiplyScalar(.76+shoreRandom()*.38));
  }
- for(let i=0;i<180;i++){
-  const a=i/180*Math.PI*2+(shoreRandom()-.5)*.14,[x,z]=shorePoint(a,1.005+shoreRandom()*.11),r=.035+shoreRandom()**2*.23;
+ for(let i=0;i<260;i++){
+  const a=i/260*Math.PI*2+(shoreRandom()-.5)*.16,[x,z]=shorePoint(a,.995+shoreRandom()*.15),r=.03+shoreRandom()**2*.24;
   dummy.position.set(x,height(x,z)+r*.10,z);dummy.rotation.set(shoreRandom(),shoreRandom()*6.28,shoreRandom());dummy.scale.set(r,r*.49,r*(.7+shoreRandom()*.5));dummy.updateMatrix();shoreStones.setMatrixAt(i,dummy.matrix);shoreStones.setColorAt(i,stoneColors[i%stoneColors.length]);
  }
  for(const mesh of [reeds,shoreStones]){mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
