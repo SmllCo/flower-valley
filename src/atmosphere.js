@@ -1,5 +1,6 @@
 import * as T from 'three';
 import {mistBankPositions} from './performance.js';
+import {LAKE} from './lake-layout.js';
 
 // A small, tileable noise texture is generated once. Clouds and ground haze
 // reuse it instead of evaluating several octaves of noise in every pixel.
@@ -34,11 +35,11 @@ export function makeClouds(scene){
 // A few soft, terrain-following ribbons add visible drifting banks above the
 // grass. Each ribbon is subdivided so its base follows the valley floor.
 export function makeMistBanks(scene,height,pathX,trailLength){
- const pos=[],uv=[],phase=[],indices=[];const segments=24,locations=mistBankPositions(trailLength);
+ const pos=[],uv=[],phase=[],indices=[];const segments=24,locations=[...mistBankPositions(trailLength),LAKE.z-7];
  for(let bank=0;bank<locations.length;bank++){
-  const z0=locations[bank],width=23+bank*3.5,h=1.4+(bank%3)*.42,base=pos.length/3;
+  const z0=locations[bank],overLake=bank===locations.length-1,width=overLake?44:23+bank*3.5,h=overLake?.65:1.4+(bank%3)*.42,base=pos.length/3;
   for(let i=0;i<=segments;i++){
-   const u=i/segments,x=pathX(z0)+(u-.5)*width,z=z0+Math.sin(u*5+bank)*1.6,ground=height(x,z);
+   const u=i/segments,x=pathX(z0)+(u-.5)*width,z=z0+Math.sin(u*5+bank)*1.6,ground=overLake?Math.max(LAKE.y,height(x,z)):height(x,z);
    for(let j=0;j<2;j++){pos.push(x,ground+.08+j*h,z);uv.push(u,j);phase.push(bank*.27);}
    if(i<segments){const k=base+i*2;indices.push(k,k+1,k+2,k+1,k+3,k+2);}
   }

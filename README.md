@@ -111,3 +111,12 @@ All JavaScript files pass the syntax check and nine existing Node tests pass (ca
 - Retains V12.1's before-render resize fix, current poem, effects, audio source and quality controls.
 - Production comparison: `npm install`, `npm run build`, `npm run preview`. Vercel: import the project root containing `package.json` and `vercel.json`; Vite preset, `npm run build`, output `dist`. Hosting does not move WebGL work to the server. A local licensed audio copy may be placed at `public/audio/clair-de-lune.ogg` (existing attribution must match recording).
 - Validation: 23 Node logic tests, JavaScript syntax checks. Real WebGL shader compilation, appearance, audio and FPS remain unverified here.
+
+
+## V14 — Shore & portrait
+- Portrait camera FOV blends from 57° to 80° by aspect ratio; pointer motion is gentler and the final framing is raised slightly. The world, stations and travel speed are unchanged.
+- Low GPU is now opt-in on all devices. Adaptive resolution remains enabled; the initial ratio is capped at 1 on landscape and up to 1.5 in portrait with a 1.9 million pixel budget. Lab reports actual device pixel ratio in percent.
+- Safe-area layout, portrait verse sizing and touch hints; touch release recenters the camera pointer.
+- Lake: irregular terrain and water edge, clustered reeds (720 tufts), 180 shore stones, shallow edge tint, subdued ripples, approximate reflected ridgelines, and a low mist bank. Reflections remain analytic, not a second scene render.
+- Vercel configuration and .gitignore retained. No dependencies or build output included.
+- Verification: run `npm test`, `npm run build`, then test on Intel, Xiaomi and iPhone Safari. Browser visual rendering, audio autoplay and frame rate have not been verified in this environment. Audio source unchanged from V13.

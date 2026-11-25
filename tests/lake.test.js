@@ -8,3 +8,5 @@ test('plant relocation stays outside the lake and leaves dry points alone',()=>{
  for(let x=-35;x<=35;x+=2)for(let z=-145;z<=-65;z+=2){const p=dryPosition(x,z);assert.ok(lakeRadius(...p)>=1.09-1e-9);if(lakeRadius(x,z)>=1.09)assert.deepEqual(p,[x,z]);}
 });
 test('final reveal is continuous and limited to the final segment',()=>{assert.equal(lakeReveal(.70),0);assert.equal(lakeReveal(1),1);let prior=0;for(let p=0;p<=1;p+=.001){const v=lakeReveal(p);assert.ok(v>=prior&&v<=1);prior=v;}});
+
+test('new shoreline has an irregular but bounded shape',()=>{for(let i=0;i<360;i++)assert.ok(shoreShape(i*Math.PI/180)>.84&&shoreShape(i*Math.PI/180)<1.16);});

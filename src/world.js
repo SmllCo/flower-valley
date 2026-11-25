@@ -8,7 +8,7 @@ export const GRASS_COUNT=26000, GRASS_LOW=13000;
 import {detailFor} from './lod.js';
 import {potentiallyVisible} from './visibility.js';
 import petalTexture from './assets/petal-veins.png';
-import {lakeRadius,lakeTerrain,dryPosition} from './lake-layout.js';
+import {LAKE,lakeRadius,lakeTerrain,dryPosition,shorePoint} from './lake-layout.js';
 import {makeLake} from './lake.js';
 export const clamp=T.MathUtils.clamp;
 export const smooth=(a,b,x)=>T.MathUtils.smoothstep(x,a,b);
@@ -62,9 +62,9 @@ export function buildWorld(scene){
   const meshGeo=new T.BufferGeometry();meshGeo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));meshGeo.setAttribute('color',new T.Float32BufferAttribute(cols,3));meshGeo.setIndex(indices);
   const ridge=new T.Mesh(meshGeo,new T.MeshBasicMaterial({vertexColors:true,side:T.DoubleSide,fog:false}));scene.add(ridge);
  }
- const random=rng(87), geo=new T.PlaneGeometry(160,210,128,156);geo.rotateX(-Math.PI/2);geo.translate(0,0,-62);
+ const random=rng(87), geo=new T.PlaneGeometry(160,210,160,196);geo.rotateX(-Math.PI/2);geo.translate(0,0,-62);
  const p=geo.attributes.position, colors=[], dark=new T.Color('#253029'), light=new T.Color('#515c43'), pathColor=new T.Color('#817262'), c=new T.Color();
- for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);p.setY(i,height(x,z));const m=clamp(.22+smooth(.45,.94,(18-z)/TRAIL_LENGTH)*.23+.14*Math.sin(x*.6+z*.3)+.10*Math.sin(z*1.2-x*.81)+.14*random(),0,1);c.copy(dark).lerp(light,m);const border=.14*Math.sin(z*1.8)+.10*Math.sin(x*4.1+z*3.2);const path=1-smooth(.30,1.45,Math.abs(x-pathX(z))+border);c.lerp(pathColor,path*.74);c.multiplyScalar(.87+.13*Math.sin(x*.23-z*.38)**2);const shore=1-smooth(1.02,1.16,lakeRadius(x,z));c.lerp(pathColor,shore*.42).multiplyScalar(1-shore*.30);colors.push(c.r,c.g,c.b);}
+ for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);p.setY(i,height(x,z));const m=clamp(.22+smooth(.45,.94,(18-z)/TRAIL_LENGTH)*.23+.14*Math.sin(x*.6+z*.3)+.10*Math.sin(z*1.2-x*.81)+.14*random(),0,1);c.copy(dark).lerp(light,m);const border=.14*Math.sin(z*1.8)+.10*Math.sin(x*4.1+z*3.2);const path=1-smooth(.30,1.45,Math.abs(x-pathX(z))+border);c.lerp(pathColor,path*.74);c.multiplyScalar(.87+.13*Math.sin(x*.23-z*.38)**2);const lr=lakeRadius(x,z),shore=smooth(.82,.95,lr)*(1-smooth(1.01,1.15,lr));c.lerp(pathColor,shore*.55).multiplyScalar(1-shore*.42);colors.push(c.r,c.g,c.b);}
  geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));geo.computeVertexNormals();
  // A seamless soil albedo and micro-relief map, generated locally, not downloaded.
  const loader=new T.TextureLoader();
@@ -114,6 +114,21 @@ export function buildWorld(scene){
   c.copy(greens[Math.floor(random()*greens.length)]).multiplyScalar(.80+random()*.34);grass.setColorAt(i,c);
  }
  grass.instanceMatrix.needsUpdate=true;grass.instanceColor.needsUpdate=true;scene.add(grass);
+ // Small clumps of reeds and shore stones frame the lake, leaving a clear view at arrival.
+ const shoreRandom=rng(1841), reeds=new T.InstancedMesh(gg,windy(new T.MeshBasicMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide})),720);
+ const shoreStones=new T.InstancedMesh(new T.IcosahedronGeometry(1,1),new T.MeshLambertMaterial({color:0xffffff}),180);
+ for(let i=0;i<720;i++){
+  const clump=i%36, a=clump/36*Math.PI*2+(shoreRandom()-.5)*.11;
+  const [x,z]=shorePoint(a,1.025+shoreRandom()*.11);
+  const gap=Math.abs(x)<3.6&&z>LAKE.z;
+  const r=(.55+shoreRandom()*.85)*(gap?.38:1);
+  dummy.position.set(x,height(x,z)-.025,z);dummy.rotation.set(0,shoreRandom()*6.28,0);dummy.scale.set(r,.9+r*2.0,r);dummy.updateMatrix();reeds.setMatrixAt(i,dummy.matrix);reeds.setColorAt(i,c.copy(greens[i%greens.length]).multiplyScalar(.78+shoreRandom()*.35));
+ }
+ for(let i=0;i<180;i++){
+  const a=i/180*Math.PI*2+(shoreRandom()-.5)*.14,[x,z]=shorePoint(a,1.005+shoreRandom()*.11),r=.035+shoreRandom()**2*.23;
+  dummy.position.set(x,height(x,z)+r*.10,z);dummy.rotation.set(shoreRandom(),shoreRandom()*6.28,shoreRandom());dummy.scale.set(r,r*.49,r*(.7+shoreRandom()*.5));dummy.updateMatrix();shoreStones.setMatrixAt(i,dummy.matrix);shoreStones.setColorAt(i,stoneColors[i%stoneColors.length]);
+ }
+ for(const mesh of [reeds,shoreStones]){mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
  const banks=makeMistBanks(scene,height,pathX,TRAIL_LENGTH);
  return {moon,halo,grass,skyMat,cloud,banks,lake,ambient,sun};
 }
