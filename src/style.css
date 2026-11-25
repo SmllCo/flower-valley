@@ -5,8 +5,8 @@
 @media(max-width:600px){.verse{top:35%;width:89%}.verse h2{font-size:clamp(28px,7vw,42px)}.verse p{font-size:15px}.hero h1{font-size:clamp(47px,12vw,80px)}#debug{max-width:calc(100vw - 36px);white-space:normal}.choices{flex-wrap:wrap}}
 
 /* Leave the lower half of the final frame open for the moon reflection. */
-.verse:has(#again:not([hidden])){top:25%}.verse:has(#again:not([hidden])) h2{font-size:clamp(28px,3.8vw,56px)}
-@media(max-width:600px){.verse:has(#again:not([hidden])){top:30%}}
+.at-finale .verse{top:25%}.at-finale .verse h2{font-size:clamp(28px,3.8vw,56px)}
+@media(max-width:600px){.at-finale .verse{top:30%}}
 /* Portrait composition and controls clear of iOS notches and home indicator. */
 header{top:max(20px,env(safe-area-inset-top));left:max(24px,env(safe-area-inset-left));right:max(24px,env(safe-area-inset-right))}
 footer{bottom:calc(28px + env(safe-area-inset-bottom));left:max(24px,env(safe-area-inset-left));right:max(24px,env(safe-area-inset-right))}
@@ -15,9 +15,17 @@ footer{bottom:calc(28px + env(safe-area-inset-bottom));left:max(24px,env(safe-ar
  header{top:calc(16px + env(safe-area-inset-top));left:max(18px,env(safe-area-inset-left));right:max(18px,env(safe-area-inset-right))}
  footer{left:18px;right:18px;bottom:calc(35px + env(safe-area-inset-bottom))}
  .hero{top:38%;width:90%}.hero h1{font-size:clamp(48px,12vw,88px);margin:18px 0 15px}.hero p{font-size:15px;line-height:1.55;margin-bottom:22px}
- .verse{top:32%;width:90%}.verse h2{font-size:clamp(27px,7.1vw,46px);margin:13px 0 10px}.verse p{font-size:15px;margin-bottom:16px}.verse button{margin-top:16px;min-height:44px}.verse:has(#again:not([hidden])){top:25%}.verse:has(#again:not([hidden])) h2{font-size:clamp(26px,6.8vw,42px)}
+ .verse{top:32%;width:90%}.verse h2{font-size:clamp(27px,7.1vw,46px);margin:13px 0 10px}.verse p{font-size:15px;margin-bottom:16px}.verse button{margin-top:16px;min-height:44px}.at-finale .verse{top:25%}.at-finale .verse h2{font-size:clamp(26px,6.8vw,42px)}
  #sound,.hero button{min-height:44px}.tools button{min-height:34px}.credits{left:18px}.journey{width:min(240px,60vw)}
  #debug{max-width:calc(100vw - 36px);max-height:40dvh;overflow:auto;white-space:normal}.choices{flex-wrap:wrap}
  .music-help{top:calc(70px + env(safe-area-inset-top));right:18px}
 }
-@media(max-height:480px){.hero{top:46%}.hero h1{font-size:clamp(40px,9vh,68px);margin:8px 0}.hero p{margin-bottom:10px}.verse{top:43%}.verse h2{font-size:clamp(22px,7vh,42px);margin:8px 0}.verse p{margin-bottom:8px}.verse button{margin-top:8px}.verse:has(#again:not([hidden])){top:39%}}
+@media(max-height:480px){.hero{top:46%}.hero h1{font-size:clamp(40px,9vh,68px);margin:8px 0}.hero p{margin-bottom:10px}.verse{top:43%}.verse h2{font-size:clamp(22px,7vh,42px);margin:8px 0}.verse p{margin-bottom:8px}.verse button{margin-top:8px}.at-finale .verse{top:39%}}
+
+/* Final shot: allow the landscape to stand on its own, while keeping replay and verse accessible. */
+.final-controls{position:absolute;left:50%;bottom:calc(65px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:10px;white-space:nowrap;pointer-events:auto}
+.final-controls button{font-size:11px;background:#080f205c;min-height:40px;border-color:#e7e6e255}
+.at-finale .verse{top:23%;width:min(88%,820px)}
+.at-finale .ui{background:radial-gradient(ellipse at 50% 48%,transparent 65%,#03071333 100%)}
+@media(orientation:portrait){.at-finale .verse{top:24%;width:90%}.final-controls{bottom:calc(94px + env(safe-area-inset-bottom))}.final-controls button{min-height:44px}}
+@media(max-height:480px){.at-finale .verse{top:32%}.final-controls{bottom:calc(54px + env(safe-area-inset-bottom))}}

@@ -1,5 +1,6 @@
 import * as T from 'three';
 import {LAKE,shoreShape} from './lake-layout.js';
+import {lakeLife} from './lake-life-layout.js';
 
 function rng(seed=911){return ()=>{seed=seed*16807%2147483647;return (seed-1)/2147483646;};}
 function insideLake(a,r){const shape=shoreShape(a)*r;return [LAKE.x+Math.cos(a)*LAKE.rx*shape,LAKE.z+Math.sin(a)*LAKE.rz*shape];}
@@ -37,11 +38,15 @@ export function makeLake(scene,moon){
   float disc=smoothstep(.9964,.99945,angle);
   float halo=pow(angle,120.);
   float glints=pow(angle,300.)*(.55+.45*sin(c+b+e));
+  // Elongated moon path, modulated by the same waves, rather than a flat stripe.
+  float sideways=R.x-M.x;
+  float vertical=R.y-M.y;
+  float pathGlow=exp(-sideways*sideways*330.-vertical*vertical*20.)*(.55+.45*cos(b+c));
   float az=atan(R.x,-R.z);
   float silhouette=.054+.039*abs(sin(az*5.2+.7))+.012*sin(az*13.1);
   float hills=1.-smoothstep(silhouette-.011,silhouette+.014,horizon);
   sky=mix(sky,vec3(.011,.022,.036),hills*.76);
-  vec3 reflected=sky+vec3(.76,.86,1.)*(disc*.34+halo*.10+glints*.20);
+  vec3 reflected=sky+vec3(.76,.86,1.)*(disc*.38+halo*.10+glints*.24+pathGlow*.12);
   vec3 water=mix(vec3(.014,.033,.042),reflected,fresnel);
   float edgeAngle=atan((p.y+108.)/31.,p.x/29.);
   float shore=1.+.085*sin(edgeAngle*3.+.8)+.042*cos(edgeAngle*5.-1.2)+.018*sin(edgeAngle*9.+1.1);
@@ -62,7 +67,7 @@ export function makeLake(scene,moon){
 
  // Thin drifting mist above the water keeps the finale from looking too empty.
  const mistUniforms={time:{value:0},fogTint:{value:new T.Color(0x5f7086)}};
- const mistMat=new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,uniforms:mistUniforms,
+ const mistMat=new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,uniforms:mistUniforms,
   vertexShader:`varying vec3 vWorld;void main(){vWorld=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(vWorld,1.);}`,
   fragmentShader:`
   varying vec3 vWorld;uniform float time;uniform vec3 fogTint;
@@ -72,31 +77,36 @@ export function makeLake(scene,moon){
    float edge=1.-smoothstep(.62,1.02,radius);
    float n=.55+.45*sin(vWorld.x*.13+time*.15)+.35*sin(vWorld.z*.17-time*.11)+.22*sin((vWorld.x+vWorld.z)*.21+time*.09);
    float streak=.5+.5*sin(vWorld.x*.42-time*.24);
-   float alpha=edge*(.018+.045*n+.018*streak);
+   float alpha=edge*clamp(.014+.040*n+.015*streak,0.,.10);
    gl_FragColor=vec4(mix(fogTint,vec3(.86,.9,.95),.22),alpha);
    #include <tonemapping_fragment>
    #include <colorspace_fragment>
   }`});
- const mist=new T.Mesh(geo,mistMat);mist.position.y=LAKE.y+.09;scene.add(mist);
+ const mist=new T.Mesh(geo,mistMat);mist.position.y=.16;scene.add(mist);
 
- // Lily pads near the edges add context cheaply.
- const padGeo=new T.CircleGeometry(1,9);
- const padMat=new T.MeshLambertMaterial({color:0x5a6a42,emissive:0x10150b,emissiveIntensity:.12,side:T.DoubleSide});
- const pads=new T.InstancedMesh(padGeo,padMat,28);const dummy=new T.Object3D();
- const rand=rng(1441);
- for(let i=0;i<28;i++){
-  const a=rand()*Math.PI*2;
-  const band=.60+rand()*.28;
-  const [x,z]=insideLake(a,band);
-  const avoid=Math.abs(x)<6&&z>LAKE.z-2;
-  const scale=(avoid?.38:1)*(.22+rand()*.24);
-  dummy.position.set(x,LAKE.y+.012+rand()*.015,z);
-  dummy.rotation.set(-Math.PI/2,rand()*Math.PI*2,rand()*.2);
-  dummy.scale.setScalar(scale);
-  dummy.updateMatrix();
-  pads.setMatrixAt(i,dummy.matrix);
+ // Notched, horizontal lily leaves and sculpted open blossoms in grouped colonies.
+ const life=lakeLife(), dummy=new T.Object3D(), rand=rng(1441);
+ const leafVertices=[0,0,0],leafIndices=[];
+ for(let i=0;i<=16;i++){const a=.20+i*(Math.PI*2-.40)/16;const r=1+.035*Math.sin(a*5.);leafVertices.push(Math.cos(a)*r,.012*Math.sin(a*2.),Math.sin(a)*r);if(i<16)leafIndices.push(0,i+2,i+1);}
+ const padGeo=new T.BufferGeometry();padGeo.setAttribute('position',new T.Float32BufferAttribute(leafVertices,3));padGeo.setIndex(leafIndices);padGeo.computeVertexNormals();
+ const padMat=new T.MeshLambertMaterial({color:0xffffff,side:T.DoubleSide,emissive:0x122016,emissiveIntensity:.22});
+ const pads=new T.InstancedMesh(padGeo,padMat,life.pads.length);
+ const padColors=['#687e52','#465e43','#80936a'].map(v=>new T.Color(v));
+ const blooms=life.pads.filter(v=>v.bloom);
+ // A single low-poly geometry for all water lilies, two rings of raised petals.
+ const vertices=[],lilyIndices=[];
+ for(let ring=0;ring<2;ring++)for(let j=0;j<8;j++){
+  const a=j*Math.PI/4+ring*.32,cs=Math.cos(a),sn=Math.sin(a),r=ring?.47:.72,h=ring?.40:.25,w=ring?.13:.18,k=vertices.length/3;
+  const point=(u,y,v)=>[u*cs-v*sn,y,u*sn+v*cs];
+  vertices.push(...point(.04,.02,0),...point(r*.53,h*.38,-w),...point(r,h,0),...point(r*.53,h*.38,w),...point(r*.52,h*.68,0));
+  lilyIndices.push(k,k+1,k+4,k+1,k+2,k+4,k+2,k+3,k+4,k+3,k,k+4);
  }
- pads.instanceMatrix.needsUpdate=true;scene.add(pads);
+ const lilyGeo=new T.BufferGeometry();lilyGeo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));lilyGeo.setIndex(lilyIndices);lilyGeo.computeVertexNormals();
+ const lilies=new T.InstancedMesh(lilyGeo,new T.MeshLambertMaterial({color:0xffffff,side:T.DoubleSide,emissive:0x9a97a9,emissiveIntensity:.13}),blooms.length);
+ const centers=new T.InstancedMesh(new T.IcosahedronGeometry(.10,0),new T.MeshLambertMaterial({color:0xe5c59c,emissive:0x775f31,emissiveIntensity:.18}),blooms.length);
+ life.pads.forEach((p,i)=>{dummy.position.set(p.x,LAKE.y+.035+i*.00012,p.z);dummy.rotation.set(0,p.angle,0);dummy.scale.setScalar(p.scale);dummy.updateMatrix();pads.setMatrixAt(i,dummy.matrix);pads.setColorAt(i,padColors[i%3]);});
+ blooms.forEach((p,i)=>{dummy.position.set(p.x,LAKE.y+.10,p.z);dummy.rotation.set(0,p.angle,0);dummy.scale.setScalar(p.scale*.91);dummy.updateMatrix();lilies.setMatrixAt(i,dummy.matrix);lilies.setColorAt(i,new T.Color(i%3===0?'#e0bbd6':'#eee9df'));dummy.position.y+=p.scale*.20;dummy.updateMatrix();centers.setMatrixAt(i,dummy.matrix);});
+ for(const batch of [pads,lilies,centers]){batch.instanceMatrix.needsUpdate=true;if(batch.instanceColor)batch.instanceColor.needsUpdate=true;scene.add(batch);}
 
  // Soft glints / motes hovering over the water.
  const moteCount=54,motePos=new Float32Array(moteCount*3),moteSize=new Float32Array(moteCount),motePhase=new Float32Array(moteCount),moteTint=new Float32Array(moteCount*3);
@@ -116,16 +126,18 @@ export function makeLake(scene,moon){
  moteGeo.setAttribute('tint',new T.BufferAttribute(moteTint,3));
  const moteUniforms={time:{value:0},pixelHeight:{value:600},opening:{value:0}};
  const motes=new T.Points(moteGeo,new T.ShaderMaterial({transparent:true,depthWrite:false,blending:T.AdditiveBlending,uniforms:moteUniforms,
-  vertexShader:`attribute float moteSize;attribute float phase;attribute vec3 tint;uniform float time;uniform float pixelHeight;varying vec3 vTint;varying float vAlpha;void main(){vec3 p=position;float drift=sin(time*.18+phase);p.x+=sin(time*.12+phase)*.18;p.z+=cos(time*.09+phase)*.15;p.y+=drift*.04;vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(pixelHeight*moteSize/max(90.,-mv.z),1.,9.);vTint=tint;vAlpha=.35+.65*(.5+.5*sin(time*.7+phase));}`,
+  vertexShader:`attribute float moteSize;attribute float phase;attribute vec3 tint;uniform float time;uniform float pixelHeight;varying vec3 vTint;varying float vAlpha;void main(){vec3 p=position;float drift=sin(time*.18+phase);p.x+=sin(time*.12+phase)*.18;p.z+=cos(time*.09+phase)*.15;p.y+=drift*.04;vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(pixelHeight*.0015*moteSize/max(1.,-mv.z),1.,6.);vTint=tint;vAlpha=.35+.65*(.5+.5*sin(time*.7+phase));}`,
   fragmentShader:`varying vec3 vTint;varying float vAlpha;void main(){float d=length(gl_PointCoord-.5)*2.;float a=exp(-d*d*5.5)*(1.-smoothstep(.66,1.,d))*vAlpha;gl_FragColor=vec4(vTint,a);}`
  }));
  motes.frustumCulled=false;scene.add(motes);
 
+ const mistTint=new T.Color(0xaab7c7);
  return {
   mesh,
+  setQuality(mistOn,low,pixelHeight){mist.visible=mistOn&&!low;moteUniforms.pixelHeight.value=pixelHeight;},
   update(time,opening,fogColor){
    uniforms.time.value=time;uniforms.opening.value=opening;uniforms.fogTint.value.copy(fogColor);
-   mistUniforms.time.value=time;mistUniforms.fogTint.value.copy(fogColor).lerp(new T.Color(0xaab7c7),.18+.22*opening);
+   mistUniforms.time.value=time;mistUniforms.fogTint.value.copy(fogColor).lerp(mistTint,.18+.22*opening);
    moteUniforms.time.value=time;moteUniforms.opening.value=opening;
   }
  };

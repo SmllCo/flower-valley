@@ -10,6 +10,7 @@ import {potentiallyVisible} from './visibility.js';
 import petalTexture from './assets/petal-veins.png';
 import {LAKE,lakeRadius,lakeTerrain,dryPosition,shorePoint} from './lake-layout.js';
 import {makeLake} from './lake.js';
+import {lakeLife} from './lake-life-layout.js';
 export const clamp=T.MathUtils.clamp;
 export const smooth=(a,b,x)=>T.MathUtils.smoothstep(x,a,b);
 export const pathX=z=>Math.sin((18-z)*.064)*3.1+Math.sin((18-z)*.115)*.85;
@@ -129,6 +130,13 @@ export function buildWorld(scene){
   dummy.position.set(x,height(x,z)+r*.10,z);dummy.rotation.set(shoreRandom(),shoreRandom()*6.28,shoreRandom());dummy.scale.set(r,r*.49,r*(.7+shoreRandom()*.5));dummy.updateMatrix();shoreStones.setMatrixAt(i,dummy.matrix);shoreStones.setColorAt(i,stoneColors[i%stoneColors.length]);
  }
  for(const mesh of [reeds,shoreStones]){mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;scene.add(mesh);}
+ // Distinct tall cattails frame the final shot. Two instanced batches; no per-frame CPU transforms.
+ const cattails=lakeLife().reeds,stalkGeo=new T.CylinderGeometry(.017,.025,1,5,1);stalkGeo.translate(0,.5,0);
+ const headGeo=new T.CylinderGeometry(.065,.075,.29,7,1);headGeo.translate(0,.145,0);
+ const stalks=new T.InstancedMesh(stalkGeo,new T.MeshLambertMaterial({color:0x637752}),cattails.length);
+ const heads=new T.InstancedMesh(headGeo,new T.MeshLambertMaterial({color:0x776144}),cattails.length);
+ cattails.forEach((v,i)=>{const ground=height(v.x,v.z);dummy.position.set(v.x,ground,v.z);dummy.rotation.set(0,v.angle,0);dummy.scale.set(v.scale,v.height,v.scale);dummy.updateMatrix();stalks.setMatrixAt(i,dummy.matrix);dummy.position.y=ground+v.height-.045;dummy.scale.set(v.scale,v.scale,v.scale);dummy.updateMatrix();heads.setMatrixAt(i,dummy.matrix);});
+ for(const batch of [stalks,heads]){batch.instanceMatrix.needsUpdate=true;scene.add(batch);}
  const banks=makeMistBanks(scene,height,pathX,TRAIL_LENGTH);
  return {moon,halo,grass,skyMat,cloud,banks,lake,ambient,sun};
 }

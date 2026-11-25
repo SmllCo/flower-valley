@@ -128,3 +128,9 @@ All JavaScript files pass the syntax check and nine existing Node tests pass (ca
 - Added a thin drifting surface mist sheet, floating motes/firefly-like glints above the water, and small lily pads clustered near the edges to stop the lake feeling empty.
 - Shoreline life increased: denser reeds and more shore stones, still leaving the central arrival open. Performance target is to stay close to V14 rather than adding expensive real reflections.
 - Verification still depends on the target devices. Run `npm test`, then compare V14 and V15 at the same station and flower count.
+
+## V16 — Moonlit finale
+- Based on the delivered V15. Keeps the existing four stations, music source, density settings, two geometric flower LODs and adaptive rendering. No real scene reflections or additional full-screen postprocessing passes.
+- Camera rises on the last stretch, reduces pointer influence and settles gently at the lake. Final framing is adjusted separately for portrait. The final verse remains for nine seconds and can be hidden or restored by an explicit button; reduced-motion users retain the text unless they dismiss it. Replay remains available.
+- Deterministic clusters of notched floating lily leaves, sculpted water lily blossoms and distinct cattails along the banks. All use instanced meshes. Fixes the previous surface mist's double vertical offset, honors the Mist and Low GPU controls, and scales water motes with render height. Adds a restrained elongated analytic moon reflection. The cattails are static, while the inherited grasses and water animate.
+- Validation: 30 Node logic tests and JavaScript syntax checks. Three.js/Vite are not installed in the current environment; shader compilation, visual appearance, production build, playback and real FPS require browser testing. Compare at the final station using End on desktop and the same flower count, resolution and effects. The water reflection is still simulated.
