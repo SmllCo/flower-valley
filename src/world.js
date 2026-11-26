@@ -10,11 +10,13 @@ import {potentiallyVisible} from './visibility.js';
 import petalTexture from './assets/petal-veins.png';
 import {LAKE,lakeRadius,lakeTerrain,dryPosition,shorePoint} from './lake-layout.js';
 import {makeLake} from './lake.js';
+import {addBotanicalLight,cinema} from './cinematic.js';
 import {openingFlower,groundDetail} from './art-direction.js';
 import moonImage from './assets/moon.png';
 import {lakeLife} from './lake-life-layout.js';
 import {finaleFlower,finaleBank} from './finale-layout.js';
 import {makeFinaleForest} from './finale-forest.js';
+import {makeMountains} from './mountains.js';
 export const clamp=T.MathUtils.clamp;
 export const smooth=(a,b,x)=>T.MathUtils.smoothstep(x,a,b);
 export const pathX=z=>Math.sin((18-z)*.064)*3.1+Math.sin((18-z)*.115)*.85;
@@ -33,7 +35,7 @@ vec3 plantWind(vec2 root,float h){
  float b=sin(windTime*.74-root.y*.31+root.x*.16);
  return vec3((a*.12+b*.055)*h*h,0.,(b*.10+a*.035)*h*h)*windStrength;
 }`;
-function windy(material,tip=false){
+function windy(material,tip=false,kind=null){
  material.onBeforeCompile=shader=>{shader.uniforms.windTime=wind.time;shader.uniforms.windStrength=wind.strength;
  shader.vertexShader=windGLSL+'\n'+shader.vertexShader;
  shader.vertexShader=shader.vertexShader.replace('#include <project_vertex>',`vec4 mvPosition=vec4(transformed,1.0);
@@ -43,30 +45,24 @@ function windy(material,tip=false){
    mvPosition.xyz+=plantWind(instanceMatrix[3].xz,${tip?'0.65*plantScale':'max(0.,transformed.y*plantScale)'});
  #endif
  mvPosition=modelViewMatrix*mvPosition;
- gl_Position=projectionMatrix*mvPosition;`);};
- material.customProgramCacheKey=()=>tip?'valley-wind-tip':'valley-wind-blade';return material;
+ gl_Position=projectionMatrix*mvPosition;`);if(kind)addBotanicalLight(shader,kind);};
+ material.customProgramCacheKey=()=>`valley-wind-${tip?'tip':'blade'}-${kind||'plain'}`;return material;
 }
 export function buildWorld(scene){
  const cloud=makeClouds(scene);
- const skyMat=new T.ShaderMaterial({side:T.BackSide,depthWrite:false,uniforms:{opening:{value:0}},vertexShader:`varying vec3 vDir;void main(){vDir=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,fragmentShader:`varying vec3 vDir;uniform float opening;void main(){vec3 d=normalize(vDir);float h=smoothstep(-.09,.72,d.y);vec3 horizon=mix(vec3(.035,.065,.12),vec3(.028,.055,.10),opening);vec3 zenith=vec3(.004,.008,.025);vec3 col=mix(horizon,zenith,h);float m=pow(max(0.,dot(d,normalize(vec3(.02,.20,-1.)))),24.);col+=vec3(.036,.053,.095)*m;gl_FragColor=vec4(col,1.);
+ const skyMat=new T.ShaderMaterial({side:T.BackSide,depthWrite:false,uniforms:{opening:{value:0},rays:cinema.rays},vertexShader:`varying vec3 vDir;void main(){vDir=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,fragmentShader:`varying vec3 vDir;uniform float opening;uniform float rays;void main(){vec3 d=normalize(vDir);float h=smoothstep(-.09,.72,d.y);vec3 horizon=mix(vec3(.035,.065,.12),vec3(.028,.055,.10),opening);vec3 zenith=vec3(.004,.008,.025);vec3 col=mix(horizon,zenith,h);float m=pow(max(0.,dot(d,normalize(vec3(.02,.20,-1.)))),24.);col+=vec3(.036,.053,.095)*m;
+ // Diffuse atmospheric scattering, not visible radial spokes.
+ // Keep the contribution soft and local to the moon's region of the sky.
+ vec2 delta=d.xy-vec2(.006,.22);
+ float spread=dot(delta*vec2(3.2,5.1),delta*vec2(3.2,5.1));
+ float scatter=exp(-spread)*smoothstep(-.025,.11,d.y)*smoothstep(.20,.85,-d.z);
+ col+=vec3(.009,.015,.025)*scatter*rays*(.55+.45*opening);
+ gl_FragColor=vec4(col,1.);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`});
  const sky=new T.Mesh(new T.SphereGeometry(325,24,16),skyMat);sky.position.set(0,0,-48);sky.renderOrder=-20;sky.frustumCulled=false;scene.add(sky);
- // Layered silhouettes beyond the walk; no expensive mountain models or shadows.
- const ridgeRandom=rng(492);
- for(let layer=0;layer<3;layer++){
-  const vertices=[],indices=[],cols=[],z=-175-layer*42;
-  const bottom=-12,base=4+layer*1.8;
-  const topColor=new T.Color(['#26394b','#34475a','#40546a'][layer]);
-  const bottomColor=new T.Color(['#131d2a','#233344','#304255'][layer]);
-  for(let i=0;i<=240;i++){const x=-155+i*310/240;
-   const y=base+Math.abs(Math.sin(x*.028+layer*1.9))*6+Math.sin(x*.076+layer)*2+Math.sin(x*.17+layer*.9)*1.3+ridgeRandom()*.16;
-   vertices.push(x,bottom,z,x,y,z);cols.push(...bottomColor.toArray(),...topColor.toArray());
-   if(i<240){const a=i*2;indices.push(a,a+2,a+1,a+1,a+2,a+3);}}
-  const meshGeo=new T.BufferGeometry();meshGeo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));meshGeo.setAttribute('color',new T.Float32BufferAttribute(cols,3));meshGeo.setIndex(indices);
-  const ridge=new T.Mesh(meshGeo,new T.MeshBasicMaterial({vertexColors:true,side:T.DoubleSide,fog:false}));scene.add(ridge);
- }
+ makeMountains(scene);
  const random=rng(87), geo=new T.PlaneGeometry(160,210,160,196);geo.rotateX(-Math.PI/2);geo.translate(0,0,-62);
  const p=geo.attributes.position, colors=[], dark=new T.Color('#28332b'), light=new T.Color('#505b43'), pathColor=new T.Color('#716654'), c=new T.Color(), mossColor=new T.Color('#3c4934');
  for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);p.setY(i,height(x,z));const m=clamp(.22+smooth(.45,.94,(18-z)/TRAIL_LENGTH)*.23+.14*Math.sin(x*.6+z*.3)+.10*Math.sin(z*1.2-x*.81)+.14*random(),0,1);c.copy(dark).lerp(light,m);const border=.14*Math.sin(z*1.8)+.10*Math.sin(x*4.1+z*3.2);const path=1-smooth(.30,1.45,Math.abs(x-pathX(z))+border);c.lerp(pathColor,path*.66);const detail=groundDetail(x,z,Math.abs(x-pathX(z)));c.lerp(mossColor,detail.verge*.28).multiplyScalar(detail.shade);c.multiplyScalar(.87+.13*Math.sin(x*.23-z*.38)**2);const lr=lakeRadius(x,z),shore=smooth(.82,.95,lr)*(1-smooth(1.01,1.15,lr));c.lerp(pathColor,shore*.55).multiplyScalar(1-shore*.42);colors.push(c.r,c.g,c.b);}
@@ -76,11 +72,16 @@ export function buildWorld(scene){
  const earthMap=loader.load(earthColor), earthBump=loader.load(earthHeight);
  for(const tex of [earthMap,earthBump]){tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(80,105);tex.anisotropy=2;}
  earthMap.colorSpace=T.SRGBColorSpace;
- scene.add(new T.Mesh(geo,new T.MeshStandardMaterial({vertexColors:true,map:earthMap,bumpMap:earthBump,bumpScale:.042,roughness:.89})));
+ const contactCanvas=document.createElement('canvas');contactCanvas.width=contactCanvas.height=1024;
+ const contactCtx=contactCanvas.getContext('2d');contactCtx.fillStyle='#fff';contactCtx.fillRect(0,0,1024,1024);
+ const contactMap=new T.CanvasTexture(contactCanvas);contactMap.colorSpace=T.NoColorSpace;contactMap.channel=0;
+ const stamp=document.createElement('canvas');stamp.width=stamp.height=32;const sc=stamp.getContext('2d');const fade=sc.createRadialGradient(16,16,0,16,16,16);fade.addColorStop(0,'rgba(0,0,0,.32)');fade.addColorStop(.45,'rgba(0,0,0,.13)');fade.addColorStop(1,'rgba(0,0,0,0)');sc.fillStyle=fade;sc.fillRect(0,0,32,32);
+ const contact=(x,z,r)=>{const u=(x+80)/160*1024,v=(z+167)/210*1024,d=Math.max(1.5,r*12);contactCtx.drawImage(stamp,u-d/2,v-d/2,d,d);};
+ scene.add(new T.Mesh(geo,new T.MeshStandardMaterial({vertexColors:true,map:earthMap,bumpMap:earthBump,bumpScale:.042,roughness:.89,aoMap:contactMap,aoMapIntensity:.83})));
  // Tiny scattered stones break the silhouette of the path without a shadow pass.
  const gravel=new T.InstancedMesh(new T.IcosahedronGeometry(1,0),new T.MeshLambertMaterial({color:0xffffff}),900), stone=new T.Object3D();
  const stoneColors=['#4a4843','#69675b','#3b403e','#777064'].map(v=>new T.Color(v));
- for(let i=0;i<gravel.count;i++){let z=23-random()*(TRAIL_LENGTH+25),x=pathX(z)+(random()-.5)*3.6;const r=.012+random()**2*.052;[x,z]=dryPosition(x,z);stone.position.set(x,height(x,z)+.008,z);stone.rotation.set(random(),random()*6.28,random());stone.scale.set(r,r*(.3+random()*.35),r*(.6+random()*.6));stone.updateMatrix();gravel.setMatrixAt(i,stone.matrix);gravel.setColorAt(i,stoneColors[Math.floor(random()*4)]);}
+ for(let i=0;i<gravel.count;i++){let z=23-random()*(TRAIL_LENGTH+25),x=pathX(z)+(random()-.5)*3.6;const r=.012+random()**2*.052;[x,z]=dryPosition(x,z);stone.position.set(x,height(x,z)+.008,z);stone.rotation.set(random(),random()*6.28,random());stone.scale.set(r,r*(.3+random()*.35),r*(.6+random()*.6));stone.updateMatrix();gravel.setMatrixAt(i,stone.matrix);gravel.setColorAt(i,stoneColors[Math.floor(random()*4)]);contact(x,z,r*1.6);}
  gravel.instanceMatrix.needsUpdate=true;gravel.instanceColor.needsUpdate=true;scene.add(gravel);
  const ambient=new T.HemisphereLight(0xb9cced,0x454b3d,1.18);scene.add(ambient);const sun=new T.DirectionalLight(0xd9e5ff,1.58);sun.position.set(-13,28,-85);scene.add(sun);
  // An original procedural moon texture, with softly shaded craters.
@@ -103,7 +104,7 @@ export function buildWorld(scene){
  gg.setAttribute('position',new T.Float32BufferAttribute(gv,3));gg.setAttribute('color',new T.Float32BufferAttribute(gc,3));gg.computeVertexNormals();
  // Unlit vertex shading deliberately keeps the very thin blades legible at night.
  // The fog still gives distance cues, and the gradient mimics silver-lit tips.
- const grass=new T.InstancedMesh(gg,windy(new T.MeshBasicMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide})),GRASS_COUNT), dummy=new T.Object3D();
+ const grass=new T.InstancedMesh(gg,windy(new T.MeshBasicMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide}),false,'grass'),GRASS_COUNT), dummy=new T.Object3D();
  const shoreGrassRandom=rng(6671);
  const greens=['#344637','#4a5944','#555f46','#394f46','#697963'].map(v=>new T.Color(v));
  for(let i=0;i<grass.count;i++){
@@ -119,11 +120,11 @@ export function buildWorld(scene){
   [x,z]=dryPosition(x,z);
   const edge=smooth(.7,2.6,dist),scale=(.78+random()*.7)*(.65+edge*.35);
   dummy.position.set(x,height(x,z)-.025,z);dummy.rotation.set(0,random()*6.28,0);dummy.scale.set(scale,.50+random()*.82+patch*.32,scale);dummy.updateMatrix();grass.setMatrixAt(i,dummy.matrix);
-  c.copy(greens[Math.floor(random()*greens.length)]).multiplyScalar(.80+random()*.34);grass.setColorAt(i,c);
+  c.copy(greens[Math.floor(random()*greens.length)]).multiplyScalar(.80+random()*.34);grass.setColorAt(i,c);if(i%2===0)contact(x,z,scale*.33);
  }
  grass.instanceMatrix.needsUpdate=true;grass.instanceColor.needsUpdate=true;scene.add(grass);
  // Small clumps of reeds and shore stones frame the lake, leaving a clear view at arrival.
- const shoreRandom=rng(1841), reeds=new T.InstancedMesh(gg,windy(new T.MeshBasicMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide})),1080);
+ const shoreRandom=rng(1841), reeds=new T.InstancedMesh(gg,windy(new T.MeshBasicMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide}),false,'grass'),1080);
  const shoreStones=new T.InstancedMesh(new T.IcosahedronGeometry(1,1),new T.MeshLambertMaterial({color:0xffffff}),260);
  for(let i=0;i<1080;i++){
   const ring=i<720?1.01:1.09, clump=i%54, a=clump/54*Math.PI*2+(shoreRandom()-.5)*.13;
@@ -144,25 +145,26 @@ export function buildWorld(scene){
  const heads=new T.InstancedMesh(headGeo,new T.MeshLambertMaterial({color:0x776144}),cattails.length);
  cattails.forEach((v,i)=>{const ground=height(v.x,v.z);dummy.position.set(v.x,ground,v.z);dummy.rotation.set(0,v.angle,0);dummy.scale.set(v.scale,v.height,v.scale);dummy.updateMatrix();stalks.setMatrixAt(i,dummy.matrix);dummy.position.y=ground+v.height-.045;dummy.scale.set(v.scale,v.scale,v.scale);dummy.updateMatrix();heads.setMatrixAt(i,dummy.matrix);});
  for(const batch of [stalks,heads]){batch.instanceMatrix.needsUpdate=true;scene.add(batch);}
- const banks=makeMistBanks(scene,height,pathX,TRAIL_LENGTH);
- return {moon,halo,grass,skyMat,cloud,banks,lake,ambient,sun};
+ const banks=makeMistBanks(scene,height,pathX,TRAIL_LENGTH);contactMap.needsUpdate=true;
+ return {moon,halo,grass,skyMat,cloud,banks,lake,ambient,sun,contact,contactMap};
 }
-export function buildFlowers(scene,max=5000){
+export function buildFlowers(scene,max=5000,ground=null){
  const random=rng(), dummy=new T.Object3D(), specs=makeBotany(), items=[], positions=new Float32Array(max*3), colors=new Float32Array(max*3), pulse=new Float32Array(max), sizes=new Float32Array(max), bases=new Float32Array(max);
  const counts=specs.map(()=>0);
  for(let i=0;i<max;i++){
   let z=23-random()*(TRAIL_LENGTH+37);const open=smooth(.53,.94,(18-z)/TRAIL_LENGTH),side=random()<.5?-1:1,dist=.65+Math.pow(random(),i<2000?2.12:1.8)*(15+open*17);let x=pathX(z)+side*dist;const openingAccent=openingFlower(i),closingAccent=finaleFlower(i),accent=openingAccent||closingAccent;if(openingAccent){z=accent.z;x=pathX(z)+accent.offset;}else if(closingAccent){z=accent.z;x=accent.x;}[x,z]=dryPosition(x,z);
   const species=chooseSpecies(x,z,random()),spec=specs[species],slot=counts[species]++, scale=(.58+random()*.55)*spec.scale*(accent?accent.scale:1), y=height(x,z)-.025, a=random()*Math.PI*2;
   const color=new T.Color(spec.colors[Math.floor(random()*spec.colors.length)]).multiplyScalar(.85+random()*.24);
-  const top=y+.65*scale;items.push({x,y:top,z,ground:y,a,scale,species,slot,tilt:(random()-.5)*.36,roll:(random()-.5)*.32,last:-Infinity,base:color});
+  if(ground&&i<2000)ground.contact(x,z,scale*.38);const top=y+.65*scale;items.push({x,y:top,z,ground:y,a,scale,species,slot,tilt:(random()-.5)*.36,roll:(random()-.5)*.32,last:-Infinity,base:color});
   positions.set([x,top+.035,z],i*3);colors.set([color.r,color.g,color.b],i*3);sizes[i]=scale*spec.glowSize;bases[i]=spec.glow*(.22+random()*.14);
  }
+ if(ground)ground.contactMap.needsUpdate=true;
  const batch=(geo,mat,n)=>{const o=new T.InstancedMesh(geo,mat,Math.max(1,n));o.frustumCulled=false;scene.add(o);return o;};
  const stemsMat=windy(new T.MeshLambertMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide}));
  const petalMap=new T.TextureLoader().load(petalTexture);petalMap.colorSpace=T.SRGBColorSpace;petalMap.anisotropy=2;
- const petalMat=windy(new T.MeshLambertMaterial({map:petalMap,vertexColors:true,side:T.DoubleSide,emissive:0x222b40,emissiveIntensity:.16}),true);
+ const petalMat=windy(new T.MeshLambertMaterial({map:petalMap,vertexColors:true,side:T.DoubleSide,emissive:0x222b40,emissiveIntensity:.16}),true,'petal');
  const centerMat=windy(new T.MeshLambertMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide}),true);
- const farMat=windy(new T.MeshLambertMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide}));
+ const farMat=windy(new T.MeshLambertMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide}),false,'grass');
  const batches=specs.map((s,i)=>({stems:batch(s.stem,stemsMat,counts[i]),petals:batch(s.petals,petalMat,counts[i]),centers:batch(s.center,centerMat,counts[i]),far:batch(s.far,farMat,counts[i])}));
  for(const b of batches){for(const mesh of Object.values(b)){mesh.count=0;mesh.visible=false;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);}}
  const tint=new T.Color();let lastX=NaN,lastZ=NaN,nearCount=0,visibleCount=0,lastCamera=null,lastAspect=0,culling=false;

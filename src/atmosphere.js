@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {mistBankPositions} from './performance.js';
 import {LAKE} from './lake-layout.js';
+import {cinema} from './cinematic.js';
 
 // A small, tileable noise texture is generated once. Clouds and ground haze
 // reuse it instead of evaluating several octaves of noise in every pixel.
@@ -17,14 +18,23 @@ export const air={time:{value:0},opening:{value:0},mist:{value:1},clouds:{value:
 
 export function makeClouds(scene){
  if(!air.noise.value)air.noise.value=makeNoiseTexture();
- const mat=new T.ShaderMaterial({side:T.BackSide,transparent:true,depthWrite:false,uniforms:{noiseMap:air.noise,time:air.time,opening:air.opening,cloudAmount:air.clouds},vertexShader:`varying vec3 vDir;void main(){vDir=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,fragmentShader:`varying vec3 vDir;uniform sampler2D noiseMap;uniform float time;uniform float opening;uniform float cloudAmount;
+ const mat=new T.ShaderMaterial({side:T.BackSide,transparent:true,depthWrite:false,uniforms:{noiseMap:air.noise,time:air.time,opening:air.opening,cloudAmount:air.clouds,lunarHaze:cinema.rays},vertexShader:`varying vec3 vDir;void main(){vDir=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,fragmentShader:`varying vec3 vDir;uniform sampler2D noiseMap;uniform float time;uniform float opening;uniform float cloudAmount;uniform float lunarHaze;
  void main(){vec3 d=normalize(vDir);float horizon=smoothstep(.075,.26,d.y);if(horizon<.001)discard;
- vec2 p=d.xz/max(.18,d.y)*vec2(.25,.40);vec2 drift=vec2(time*.0025,time*.0007);
+ // Stretch the noise into narrow, broken wisps; wind advects the pattern
+ // in world-space sky coordinates, including when the camera is stopped.
+ vec2 p=d.xz/max(.18,d.y)*vec2(.27,.67);
+ p.y+=p.x*.21;
+ vec2 drift=vec2(-time*.012,time*.0018);
  vec2 cloud=texture2D(noiseMap,p+drift).rg;float detail=cloud.g;
- float density=smoothstep(.40,.65,cloud.r);float wisps=smoothstep(.36,.62,detail)*smoothstep(.35,.54,cloud.r)*.13;
- float a=clamp(density*.82+wisps,0.,.76)*horizon*cloudAmount;if(a<.006)discard;
+ float density=smoothstep(.485,.68,cloud.r);
+ float breakup=mix(.64,1.,smoothstep(.36,.66,detail));
+ float wisps=smoothstep(.45,.64,detail)*smoothstep(.43,.55,cloud.r)*.075;
+ float a=clamp(density*.46*breakup+wisps,0.,.48)*horizon*cloudAmount;if(a<.006)discard;
  float m=max(0.,dot(d,vec3(.01961,.19608,-.98039)));float m2=m*m;float m4=m2*m2;float moon=m4*m4*m;
- vec3 c=mix(vec3(.018,.029,.055),vec3(.19,.25,.35),moon*.82);c*=(.70+detail*.55)*(1.-opening*.34);
+ vec3 c=mix(vec3(.025,.040,.068),vec3(.24,.30,.40),moon*.88);c*=(.78+detail*.34)*(1.-opening*.22);
+ // Existing cloud noise shapes the soft silver lining; no additional sample.
+ float thinCloud=smoothstep(.45,.54,cloud.r)*(1.-smoothstep(.57,.70,cloud.r));
+ c+=vec3(.035,.045,.065)*thinCloud*moon*lunarHaze;
  gl_FragColor=vec4(c,a);
  #include <tonemapping_fragment>
  #include <colorspace_fragment>

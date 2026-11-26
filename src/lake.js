@@ -2,6 +2,7 @@ import * as T from 'three';
 import {LAKE,shoreShape} from './lake-layout.js';
 import {lakeLife} from './lake-life-layout.js';
 import rippleMap from './assets/water-ripples.png';
+import {createPlanarReflection} from './planar-reflection.js';
 
 function rng(seed=911){return ()=>{seed=seed*16807%2147483647;return (seed-1)/2147483646;};}
 function insideLake(a,r){const shape=shoreShape(a)*r;return [LAKE.x+Math.cos(a)*LAKE.rx*shape,LAKE.z+Math.sin(a)*LAKE.rz*shape];}
@@ -19,10 +20,10 @@ export function makeLake(scene,moon,forestMask){
  geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));
  geo.setIndex(indices);geo.computeVertexNormals();
  const ripples=new T.TextureLoader().load(rippleMap);ripples.wrapS=ripples.wrapT=T.RepeatWrapping;ripples.colorSpace=T.NoColorSpace;ripples.anisotropy=2;
- const uniforms={time:{value:0},opening:{value:0},moonPosition:{value:moon.position},fogTint:{value:new T.Color(0x30465e)},ripples:{value:ripples},forestMask:{value:forestMask}};
+ const uniforms={time:{value:0},opening:{value:0},moonPosition:{value:moon.position},fogTint:{value:new T.Color(0x30465e)},ripples:{value:ripples},forestMask:{value:forestMask},planarMap:{value:null},planarMatrix:{value:new T.Matrix4()},planarWeight:{value:0}};
  const mat=new T.ShaderMaterial({uniforms,depthWrite:true,side:T.DoubleSide,vertexShader:`varying vec3 vWorld;void main(){vWorld=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(vWorld,1.);}`,
  fragmentShader:`
- varying vec3 vWorld;uniform float time;uniform float opening;uniform vec3 moonPosition;uniform vec3 fogTint;uniform sampler2D ripples;uniform sampler2D forestMask;
+ varying vec3 vWorld;uniform float time;uniform float opening;uniform vec3 moonPosition;uniform vec3 fogTint;uniform sampler2D ripples;uniform sampler2D forestMask;uniform sampler2D planarMap;uniform mat4 planarMatrix;uniform float planarWeight;
  void main(){
   vec2 p=vWorld.xz;
   vec3 wave=texture2D(ripples,p*vec2(.073,.105)+vec2(time*.006,-time*.009)).rgb;
@@ -54,6 +55,13 @@ export function makeLake(scene,moon,forestMask){
   float hills=1.-smoothstep(silhouette-.010,silhouette+.016,horizon);
   sky=mix(sky,vec3(.006,.015,.025),max(hills*.72,trees*.83));
   vec3 reflected=sky+vec3(.88,.94,1.)*(disc*.56+halo*.095+glints*.28+pathGlow*(.15+.11*opening))*(1.-trees*.90);
+  if(planarWeight>.001){
+   vec4 projected=planarMatrix*vec4(vWorld,1.);
+   vec2 uv=projected.xy/max(.0001,projected.w)+n*.075;
+   float validUv=smoothstep(0.,.035,uv.x)*smoothstep(0.,.035,uv.y)*(1.-smoothstep(.965,1.,uv.x))*(1.-smoothstep(.965,1.,uv.y))*step(.0001,projected.w);
+   vec3 realReflection=texture2D(planarMap,clamp(uv,.001,.999)).rgb;
+   reflected=mix(reflected,realReflection,planarWeight*validUv);
+  }
   vec3 water=mix(vec3(.010,.025,.032),reflected,fresnel);
   float edgeAngle=atan((p.y+108.)/31.,p.x/29.);
   float shore=1.+.085*sin(edgeAngle*3.+.8)+.042*cos(edgeAngle*5.-1.2)+.018*sin(edgeAngle*9.+1.1);
@@ -141,8 +149,8 @@ export function makeLake(scene,moon,forestMask){
  const moteUniforms={time:{value:0},pixelHeight:{value:600},opening:{value:0},arrival:{value:0},isFinal:{value:0}};
  const motes=new T.Points(moteGeo,new T.ShaderMaterial({transparent:true,depthWrite:false,blending:T.AdditiveBlending,uniforms:moteUniforms,
   vertexShader:`attribute float moteSize;attribute float phase;attribute vec3 tint;uniform float time;uniform float pixelHeight;uniform float opening;uniform float arrival;uniform float isFinal;varying vec3 vTint;varying float vAlpha;void main(){
-   vec3 p=position;float delay=phase*.92;float age=max(0.,arrival-delay);float rise=smoothstep(0.,4.5,age)*isFinal;float veil=smoothstep(0.,.8,age)*(1.-smoothstep(6.,13.,age))*isFinal;
-   p.x+=sin(time*.22+phase)*(.15+rise*.52);p.z+=cos(time*.19+phase)*(.14+rise*.33);p.y+=sin(time*.22+phase)*.08+rise*(.7+2.8*fract(phase*1.45));
+   vec3 p=position;float delay=clamp((-position.z-77.)/55.,0.,1.)*4.2+phase*.23;float age=max(0.,arrival-delay);float rise=smoothstep(0.,4.5,age)*isFinal;float veil=smoothstep(0.,.8,age)*(1.-smoothstep(6.,13.,age))*isFinal;
+   p.x+=sin(time*.22+phase)*(.15+rise*.52)+sin(phase+age*.35)*veil*.34;p.z+=cos(time*.19+phase)*(.14+rise*.33);p.y+=sin(time*.22+phase)*.08+rise*(.7+2.8*fract(phase*1.45));
    vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(pixelHeight*.009*(moteSize/10.)/max(1.,-mv.z),1.,7.);
    vTint=tint*(1.+veil*.65);float twinkle=.28+.72*pow(.5+.5*sin(time*.85+phase*2.),2.);vAlpha=(.12+.35*opening+.38*veil)*twinkle;
   }`,
@@ -151,8 +159,9 @@ export function makeLake(scene,moon,forestMask){
  motes.frustumCulled=false;scene.add(motes);
 
  const mistTint=new T.Color(0xaab7c7);
+ const reflection=createPlanarReflection(mesh,mist,uniforms);
  return {
-  mesh,
+  mesh,reflection,
   setQuality(mistOn,low,pixelHeight){mist.visible=mistOn&&!low;moteUniforms.pixelHeight.value=pixelHeight;},
   update(time,opening,fogColor,arrival=0,final=false){
    uniforms.time.value=time;uniforms.opening.value=opening;uniforms.fogTint.value.copy(fogColor);

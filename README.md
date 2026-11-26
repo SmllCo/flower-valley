@@ -156,3 +156,29 @@ All JavaScript files pass the syntax check and nine existing Node tests pass (ca
 - Water uses an original periodic spectral-noise texture, sampled at two scales and orientations, instead of the crossing sine-wave pattern. A projected forest-silhouette mask approximates distant tree reflections; the moon path is broken into irregular highlights. No second world render or reflection render target.
 - 220 pooled lake motes form a staggered rising wave during the finale, then settle. The redundant horizontal lake mist ribbon is removed; the lower surface haze remains. Reduced-motion mode shows the settled state.
 - Verification: 36 pure logic tests; JS syntax checks. The changed camera test now checks the intended lower lift and retreat instead of requiring the older high shot. Browser rendering and frame rates remain unverified because Three.js/Vite are not available in the local npm cache.
+
+
+## V20 — Cinematic shader lab
+- Base: V19. Same geometry, route, poem, music, mobile composition and 220 finale particles. Particle arrival now propagates across the lake spatially.
+- Default on: botanical vertex lighting (approximate thin-petal transmission and grass backlighting), static ground contact AO texture from grass, gravel and the first 2,000 flowers, revised grade, analytic moon shafts. Not physical SSS, shadow maps or volumetric scattering.
+- Lab: Petals / grass and Rays can be switched independently. Reflection is optional (off by default), activates only near the lake, uses Three Reflector at up to 480 pixels on the long edge, updated no more frequently than every .16 seconds. Analytic water remains the fallback; a real reflection is blended with it. DOF is optional (off by default), requires Bloom/postprocessing, uses depth-buffer samples at reading stations only, and is disabled by reduced motion. Low GPU disables both optional expensive features.
+- Reflection and DOF are experimental: browser shader compilation, GPU target support and actual appearance still need testing. If a shader fails, report browser console output and use V19 as stable fallback. Existing frame resize ordering retained.
+- Validation: 40 pure JS / source-level tests; JS syntax checks. npm install failed because registry DNS is unavailable, so no production build or browser rendering was verified. No third-party image assets added.
+
+
+## V20.1 — Soft lunar haze
+- Removes the periodic angular fan from the sky shader. Replaces it with a small diffuse lunar scattering term and subtle irregular cloud-edge lighting, reusing the cloud noise sample. No new geometry, textures, render passes or audio changes. Lab's Rays button is renamed Haze and controls these two contributions; the base sky and moon halo remain independent. Reflection, DOF and botanical lighting are unchanged.
+- Visual appearance and performance still require browser testing.
+
+## V21 — Forest & mountain relief
+- Based on V20.1, including its diffuse lunar haze fix. No new rays, no new post-processing pass.
+- Replaces six conical skirts per pine with three deterministic models of irregular, volumetric branch clusters and tapered trunks. The same 146 trees are instanced across three batches. The analytic water mask now projects the actual branch geometry, not the old triangular silhouettes.
+- Three distant mountain massifs use 3D heightfields with broad folds, smaller gullies, baked slope lighting, and a distance-dependent blue haze palette. They are no longer flat vertical cutouts. The meshes add 22,464 triangles total. The denser forest adds roughly 177,000 triangles total (versus approximately 44,000 in V20.1), before culling or any optional reflection render.
+- The existing lake, flower geometry, camera, poem, quality switches, sound, and Vercel configuration are unchanged. All assets are procedural and no additional dependencies are needed.
+- Validation: Node logic and geometry tests and JavaScript syntax. No browser render, GLSL compilation, Vercel build or hardware FPS verification in the container. Compare at the same final station, quality, pixel ratio and reflection setting. If performance drops significantly, a distant-tree geometry LOD is the next candidate.
+
+
+## V22 — Passing clouds
+- Builds on V21. Changes only the cloud shell shader: elongated, broken translucent wisps with a lower opacity ceiling, a wider clear-sky fraction, subtle silver lining, and more noticeable lateral advection. Wind is time-based and continues at reading stops; reduced-motion mode retains the inherited frozen atmospheric time.
+- Reuses the same noise texture, one lookup per pixel and the same geometry/draw call. Clouds and Haze controls, terrain, forest, camera, audio and optional reflection/DOF remain unchanged.
+- The revised cloud color and motion are artistic choices; browser appearance, shader compilation and actual FPS require testing on the target devices.

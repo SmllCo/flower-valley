@@ -53,3 +53,6 @@ footer{bottom:calc(28px + env(safe-area-inset-bottom));left:max(24px,env(safe-ar
 .finale-settled .final-controls button{background:#08102072;border-color:#eef2ff80;box-shadow:0 10px 26px #0206111f}
 .finale-settled .ui{background:radial-gradient(ellipse at 50% 42%,transparent 56%,#03071322 100%)}
 
+
+/* V20: keep extra quality switches inside the viewport. */
+#debug{max-width:min(760px,calc(100vw - 48px));white-space:normal}.choices{flex-wrap:wrap;justify-content:flex-end}
