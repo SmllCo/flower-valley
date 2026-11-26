@@ -10,6 +10,8 @@ import {potentiallyVisible} from './visibility.js';
 import petalTexture from './assets/petal-veins.png';
 import {LAKE,lakeRadius,lakeTerrain,dryPosition,shorePoint} from './lake-layout.js';
 import {makeLake} from './lake.js';
+import {openingFlower,groundDetail} from './art-direction.js';
+import moonImage from './assets/moon.png';
 import {lakeLife} from './lake-life-layout.js';
 export const clamp=T.MathUtils.clamp;
 export const smooth=(a,b,x)=>T.MathUtils.smoothstep(x,a,b);
@@ -64,8 +66,8 @@ export function buildWorld(scene){
   const ridge=new T.Mesh(meshGeo,new T.MeshBasicMaterial({vertexColors:true,side:T.DoubleSide,fog:false}));scene.add(ridge);
  }
  const random=rng(87), geo=new T.PlaneGeometry(160,210,160,196);geo.rotateX(-Math.PI/2);geo.translate(0,0,-62);
- const p=geo.attributes.position, colors=[], dark=new T.Color('#253029'), light=new T.Color('#515c43'), pathColor=new T.Color('#817262'), c=new T.Color();
- for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);p.setY(i,height(x,z));const m=clamp(.22+smooth(.45,.94,(18-z)/TRAIL_LENGTH)*.23+.14*Math.sin(x*.6+z*.3)+.10*Math.sin(z*1.2-x*.81)+.14*random(),0,1);c.copy(dark).lerp(light,m);const border=.14*Math.sin(z*1.8)+.10*Math.sin(x*4.1+z*3.2);const path=1-smooth(.30,1.45,Math.abs(x-pathX(z))+border);c.lerp(pathColor,path*.74);c.multiplyScalar(.87+.13*Math.sin(x*.23-z*.38)**2);const lr=lakeRadius(x,z),shore=smooth(.82,.95,lr)*(1-smooth(1.01,1.15,lr));c.lerp(pathColor,shore*.55).multiplyScalar(1-shore*.42);colors.push(c.r,c.g,c.b);}
+ const p=geo.attributes.position, colors=[], dark=new T.Color('#28332b'), light=new T.Color('#505b43'), pathColor=new T.Color('#716654'), c=new T.Color(), mossColor=new T.Color('#3c4934');
+ for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);p.setY(i,height(x,z));const m=clamp(.22+smooth(.45,.94,(18-z)/TRAIL_LENGTH)*.23+.14*Math.sin(x*.6+z*.3)+.10*Math.sin(z*1.2-x*.81)+.14*random(),0,1);c.copy(dark).lerp(light,m);const border=.14*Math.sin(z*1.8)+.10*Math.sin(x*4.1+z*3.2);const path=1-smooth(.30,1.45,Math.abs(x-pathX(z))+border);c.lerp(pathColor,path*.66);const detail=groundDetail(x,z,Math.abs(x-pathX(z)));c.lerp(mossColor,detail.verge*.28).multiplyScalar(detail.shade);c.multiplyScalar(.87+.13*Math.sin(x*.23-z*.38)**2);const lr=lakeRadius(x,z),shore=smooth(.82,.95,lr)*(1-smooth(1.01,1.15,lr));c.lerp(pathColor,shore*.55).multiplyScalar(1-shore*.42);colors.push(c.r,c.g,c.b);}
  geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));geo.computeVertexNormals();
  // A seamless soil albedo and micro-relief map, generated locally, not downloaded.
  const loader=new T.TextureLoader();
@@ -78,11 +80,12 @@ export function buildWorld(scene){
  const stoneColors=['#4a4843','#69675b','#3b403e','#777064'].map(v=>new T.Color(v));
  for(let i=0;i<gravel.count;i++){let z=23-random()*(TRAIL_LENGTH+25),x=pathX(z)+(random()-.5)*3.6;const r=.012+random()**2*.052;[x,z]=dryPosition(x,z);stone.position.set(x,height(x,z)+.008,z);stone.rotation.set(random(),random()*6.28,random());stone.scale.set(r,r*(.3+random()*.35),r*(.6+random()*.6));stone.updateMatrix();gravel.setMatrixAt(i,stone.matrix);gravel.setColorAt(i,stoneColors[Math.floor(random()*4)]);}
  gravel.instanceMatrix.needsUpdate=true;gravel.instanceColor.needsUpdate=true;scene.add(gravel);
- const ambient=new T.HemisphereLight(0xb9cced,0x454b3d,1.18);scene.add(ambient);const sun=new T.DirectionalLight(0xd9e5ff,1.58);sun.position.set(-20,32,-85);scene.add(sun);
+ const ambient=new T.HemisphereLight(0xb9cced,0x454b3d,1.18);scene.add(ambient);const sun=new T.DirectionalLight(0xd9e5ff,1.58);sun.position.set(-13,28,-85);scene.add(sun);
  // An original procedural moon texture, with softly shaded craters.
  const moonTex=texture(256,(ctx,s)=>{const g=ctx.createRadialGradient(105,97,5,128,128,120);g.addColorStop(0,'#fffaf0');g.addColorStop(.82,'#ddeaff');g.addColorStop(1,'#a7c1de');ctx.save();ctx.beginPath();ctx.arc(128,128,120,0,Math.PI*2);ctx.clip();ctx.fillStyle=g;ctx.fillRect(0,0,s,s);for(let i=0;i<160;i++){let x=random()*256,y=random()*256,r=2+random()*24;let cg=ctx.createRadialGradient(x,y,0,x,y,r);cg.addColorStop(0,'rgba(66,91,124,.15)');cg.addColorStop(1,'rgba(66,91,124,0)');ctx.fillStyle=cg;ctx.fillRect(x-r,y-r,r*2,r*2);}ctx.restore();});
  const haloTex=texture(128,(ctx,s)=>{let g=ctx.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(170,206,255,.45)');g.addColorStop(.24,'rgba(135,178,245,.19)');g.addColorStop(1,'rgba(90,140,220,0)');ctx.fillStyle=g;ctx.fillRect(0,0,s,s);});
- const moon=new T.Sprite(new T.SpriteMaterial({map:moonTex,color:new T.Color(.81,.86,.95),transparent:true,depthWrite:false,fog:false,toneMapped:false}));moon.scale.set(19,19,1);moon.position.set(1,27,-170);moon.renderOrder=-7;scene.add(moon);const lake=makeLake(scene,moon);
+ const moonMap=loader.load(moonImage);moonMap.colorSpace=T.SRGBColorSpace;moonTex.dispose();
+ const moon=new T.Sprite(new T.SpriteMaterial({map:moonMap,color:new T.Color(.86,.90,.98),transparent:true,depthWrite:false,fog:false,toneMapped:false}));moon.scale.set(19,19,1);moon.position.set(1,27,-170);moon.renderOrder=-7;scene.add(moon);const lake=makeLake(scene,moon);
  const halo=new T.Sprite(new T.SpriteMaterial({map:haloTex,transparent:true,depthWrite:false,fog:false,blending:T.AdditiveBlending}));halo.position.copy(moon.position);halo.position.z-=1;halo.scale.set(48,48,1);halo.renderOrder=-6;scene.add(halo);
  const stars=[],starColors=[];for(let i=0;i<900;i++){const a=random()*Math.PI*2,e=.09+random()*1.4,r=260;stars.push(Math.cos(a)*Math.cos(e)*r,Math.sin(e)*r+8,Math.sin(a)*Math.cos(e)*r-75);const b=.25+random()*.65;starColors.push(b*.75,b*.85,b);}
  const sg=new T.BufferGeometry();sg.setAttribute('position',new T.Float32BufferAttribute(stars,3));sg.setAttribute('color',new T.Float32BufferAttribute(starColors,3));const starField=new T.Points(sg,new T.PointsMaterial({size:1.15,sizeAttenuation:false,vertexColors:true,transparent:true,opacity:.68,fog:false,depthWrite:false}));starField.renderOrder=-8;scene.add(starField);
@@ -92,14 +95,14 @@ export function buildWorld(scene){
  for(let blade=0;blade<4;blade++){
   const a=blade*2.399+.4,cs=Math.cos(a),sn=Math.sin(a),h=[.34,.49,.26,.38][blade],lean=[.16,.19,.21,.24][blade],root=.025+blade*.008,steps=blade<2?3:2;
   const point=(t,side)=>{const w=[.017,.014,.019,.012][blade]*Math.pow(1-t,.8)*(.8+.48*Math.sin(Math.PI*t)),bend=root+lean*t*t;const y=h*(t-.11*t*t*t);return [bend*cs-side*w*sn,y,bend*sn+side*w*cs];};
-  const push=(v,t,side)=>{gv.push(...v);const shade=.35+.61*Math.pow(t,1.2);gc.push(shade*(side>0?.86:1),shade,shade*1.02);};
+  const push=(v,t,side)=>{gv.push(...v);const shade=.27+.70*Math.pow(t,1.45);gc.push(shade*(side>0?.89:1),shade,shade*(.96+.10*t));};
   for(let k=0;k<steps;k++){const u=k/steps,v=(k+1)/steps;push(point(u,-1),u,-1);push(point(u,1),u,1);push(point(v,-1),v,-1);if(k<steps-1){push(point(u,1),u,1);push(point(v,1),v,1);push(point(v,-1),v,-1);}}
  }
  gg.setAttribute('position',new T.Float32BufferAttribute(gv,3));gg.setAttribute('color',new T.Float32BufferAttribute(gc,3));gg.computeVertexNormals();
  // Unlit vertex shading deliberately keeps the very thin blades legible at night.
  // The fog still gives distance cues, and the gradient mimics silver-lit tips.
  const grass=new T.InstancedMesh(gg,windy(new T.MeshBasicMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide})),GRASS_COUNT), dummy=new T.Object3D();
- const greens=['#34483c','#46594a','#58634e','#3d504a','#62735e'].map(v=>new T.Color(v));
+ const greens=['#344637','#4a5944','#555f46','#394f46','#697963'].map(v=>new T.Color(v));
  for(let i=0;i<grass.count;i++){
   let z,x,dist,patch;
   // Rejection sampling leaves a soft path and gives irregular clumps, not a uniform carpet.
@@ -144,8 +147,8 @@ export function buildFlowers(scene,max=5000){
  const random=rng(), dummy=new T.Object3D(), specs=makeBotany(), items=[], positions=new Float32Array(max*3), colors=new Float32Array(max*3), pulse=new Float32Array(max), sizes=new Float32Array(max), bases=new Float32Array(max);
  const counts=specs.map(()=>0);
  for(let i=0;i<max;i++){
-  let z=23-random()*(TRAIL_LENGTH+37);const open=smooth(.53,.94,(18-z)/TRAIL_LENGTH),side=random()<.5?-1:1,dist=.65+Math.pow(random(),i<2000?2.12:1.8)*(15+open*17);let x=pathX(z)+side*dist;[x,z]=dryPosition(x,z);
-  const species=chooseSpecies(x,z,random()),spec=specs[species],slot=counts[species]++, scale=(.58+random()*.55)*spec.scale, y=height(x,z)-.025, a=random()*Math.PI*2;
+  let z=23-random()*(TRAIL_LENGTH+37);const open=smooth(.53,.94,(18-z)/TRAIL_LENGTH),side=random()<.5?-1:1,dist=.65+Math.pow(random(),i<2000?2.12:1.8)*(15+open*17);let x=pathX(z)+side*dist;const accent=openingFlower(i);if(accent){z=accent.z;x=pathX(z)+accent.offset;}[x,z]=dryPosition(x,z);
+  const species=chooseSpecies(x,z,random()),spec=specs[species],slot=counts[species]++, scale=(.58+random()*.55)*spec.scale*(accent?accent.scale:1), y=height(x,z)-.025, a=random()*Math.PI*2;
   const color=new T.Color(spec.colors[Math.floor(random()*spec.colors.length)]).multiplyScalar(.85+random()*.24);
   const top=y+.65*scale;items.push({x,y:top,z,ground:y,a,scale,species,slot,tilt:(random()-.5)*.36,roll:(random()-.5)*.32,last:-Infinity,base:color});
   positions.set([x,top+.035,z],i*3);colors.set([color.r,color.g,color.b],i*3);sizes[i]=scale*spec.glowSize;bases[i]=spec.glow*(.22+random()*.14);
