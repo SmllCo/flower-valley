@@ -140,3 +140,11 @@ All JavaScript files pass the syntax check and nine existing Node tests pass (ca
 - Art direction: lower ambient fill, a stronger directional key and a more restrained lunar halo; subtle moss tint and baked verge shading on the existing terrain; revised grass palette and root-to-tip gradient. No extra shadow maps, lights, draw passes or plant geometry. Final camera, water, poem, audio, and graphics controls remain unchanged, although revised lighting affects their appearance.
 - Original 512x512 procedural lunar image with crater rims and irregular darker maria; no externally sourced graphic. Editorial intro typography and first-frame reveal, respecting reduced-motion, plus a local favicon.
 - Validation: 33 Node logic tests pass, all JS files pass syntax checks. Production build could not run: Vite is not installed in this environment. Real shader compilation, browser appearance, audio, and device FPS remain unverified. Compare the opening and finale with V16 under the same Lab settings before deployment.
+
+
+## V18 — Grand Finale
+- Purpose: make the lake arrival feel like the emotional peak, not just another stop.
+- Finale framing is more theatrical: the reveal starts a little earlier, the camera rises and settles higher, and pointer influence drops further so the ending holds a composed shot.
+- The lake now carries more spectacle without a second full reflection pass: brighter moon path shimmer, extra glints aligned with the reflection, a soft layer of distant moonbeams and denser finale motes.
+- Added silhouetted foreground reeds around the near edge to frame the lake and make the last station feel less empty.
+- UI is slightly lighter in the finale so the landscape can breathe. Validation still depends on visual testing on the target devices.
