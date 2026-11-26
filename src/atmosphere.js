@@ -24,7 +24,7 @@ export function makeClouds(scene){
  float density=smoothstep(.40,.65,cloud.r);float wisps=smoothstep(.36,.62,detail)*smoothstep(.35,.54,cloud.r)*.13;
  float a=clamp(density*.82+wisps,0.,.76)*horizon*cloudAmount;if(a<.006)discard;
  float m=max(0.,dot(d,vec3(.01961,.19608,-.98039)));float m2=m*m;float m4=m2*m2;float moon=m4*m4*m;
- vec3 c=mix(vec3(.018,.029,.055),vec3(.19,.25,.35),moon*.82);c*=.70+detail*.55+opening*.12;
+ vec3 c=mix(vec3(.018,.029,.055),vec3(.19,.25,.35),moon*.82);c*=(.70+detail*.55)*(1.-opening*.34);
  gl_FragColor=vec4(c,a);
  #include <tonemapping_fragment>
  #include <colorspace_fragment>
@@ -35,9 +35,9 @@ export function makeClouds(scene){
 // A few soft, terrain-following ribbons add visible drifting banks above the
 // grass. Each ribbon is subdivided so its base follows the valley floor.
 export function makeMistBanks(scene,height,pathX,trailLength){
- const pos=[],uv=[],phase=[],indices=[];const segments=24,locations=[...mistBankPositions(trailLength),LAKE.z-7];
+ const pos=[],uv=[],phase=[],indices=[];const segments=24,locations=mistBankPositions(trailLength);
  for(let bank=0;bank<locations.length;bank++){
-  const z0=locations[bank],overLake=bank===locations.length-1,width=overLake?44:23+bank*3.5,h=overLake?.65:1.4+(bank%3)*.42,base=pos.length/3;
+  const z0=locations[bank],overLake=false,width=overLake?44:23+bank*3.5,h=overLake?.65:1.4+(bank%3)*.42,base=pos.length/3;
   for(let i=0;i<=segments;i++){
    const u=i/segments,x=pathX(z0)+(u-.5)*width,z=z0+Math.sin(u*5+bank)*1.6,ground=overLake?Math.max(LAKE.y,height(x,z)):height(x,z);
    for(let j=0;j<2;j++){pos.push(x,ground+.08+j*h,z);uv.push(u,j);phase.push(bank*.27);}

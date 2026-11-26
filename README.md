@@ -148,3 +148,11 @@ All JavaScript files pass the syntax check and nine existing Node tests pass (ca
 - The lake now carries more spectacle without a second full reflection pass: brighter moon path shimmer, extra glints aligned with the reflection, a soft layer of distant moonbeams and denser finale motes.
 - Added silhouetted foreground reeds around the near edge to frame the lake and make the last station feel less empty.
 - UI is slightly lighter in the finale so the landscape can breathe. Validation still depends on visual testing on the target devices.
+
+
+## V19 — The enchanted shore
+- Replaces the V18 rectangular reeds and planar light shafts. Instanced volumetric conifers and raised banks surround the lake, with the central moon sightline left open. The background ridges have finer silhouettes. A portion of the existing flower and grass budgets is redistributed to the shore; the preset counts are unchanged.
+- The final camera settles further back and lower, leaving visible foreground rather than looking down on a large empty basin. The final sky and cloud exposure are darker.
+- Water uses an original periodic spectral-noise texture, sampled at two scales and orientations, instead of the crossing sine-wave pattern. A projected forest-silhouette mask approximates distant tree reflections; the moon path is broken into irregular highlights. No second world render or reflection render target.
+- 220 pooled lake motes form a staggered rising wave during the finale, then settle. The redundant horizontal lake mist ribbon is removed; the lower surface haze remains. Reduced-motion mode shows the settled state.
+- Verification: 36 pure logic tests; JS syntax checks. The changed camera test now checks the intended lower lift and retreat instead of requiring the older high shot. Browser rendering and frame rates remain unverified because Three.js/Vite are not available in the local npm cache.
